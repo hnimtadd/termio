@@ -12,7 +12,7 @@ import (
 
 var ErrOutOfMemory = fmt.Errorf("page: out of memory")
 
-// A page represents a specific section of terminal screen. The primary
+// Page represents a specific section of terminal screen. The primary
 // idea of a page is that it is a fully self-contained unit that can be
 // serialized, copied, etc. as a convenient way to represent a section
 // of the screen.
