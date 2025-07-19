@@ -1,8 +1,9 @@
 package pagelist
 
 import (
-	"github.com/hnimtadd/termio/coordinate"
-	"github.com/hnimtadd/termio/io"
+	"io"
+
+	"github.com/hnimtadd/termio/terminal/coordinate"
 	"github.com/hnimtadd/termio/terminal/datastruct"
 	"github.com/hnimtadd/termio/terminal/page"
 	"github.com/hnimtadd/termio/terminal/point"

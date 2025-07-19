@@ -2,13 +2,12 @@ package page
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/hnimtadd/termio/io"
 	"github.com/hnimtadd/termio/terminal/set"
 	"github.com/hnimtadd/termio/terminal/size"
 	styleid "github.com/hnimtadd/termio/terminal/style/id"
 	"github.com/hnimtadd/termio/terminal/utils"
-	internalutils "github.com/hnimtadd/termio/utils"
 )
 
 var ErrOutOfMemory = fmt.Errorf("page: out of memory")
@@ -87,7 +86,7 @@ func InitPage(cap Capacity) *Page {
 		Rows:   rows,
 		Cells:  cells,
 		Styles: set.NewRefCountedSet(set.Options{
-			Cap: internalutils.PointerTo(uint64(cap.Styles)),
+			Cap: utils.PointerTo(uint64(cap.Styles)),
 		}),
 		Size:     Size{Cols: cap.Cols, Rows: cap.Rows},
 		Capacity: cap,
@@ -169,20 +168,20 @@ type Adjustment struct {
 func (c *Capacity) Adjust(req Adjustment) error {
 	if req.Cols > 0 && req.Cols != c.Cols {
 		totalCells := c.Cols * c.Rows
-		new_rows := int(totalCells / req.Cols)
+		newRows := int(totalCells / req.Cols)
 		// If our rows to to zero then we can't fit any row metadata for the
 		// desired number of columns.
-		if new_rows == 0 {
+		if newRows == 0 {
 			return ErrOutOfMemory
 		}
-		c.Rows = size.CellCountInt(new_rows)
+		c.Rows = size.CellCountInt(newRows)
 		c.Cols = req.Cols
 	}
 	return nil
 }
 
-// The standard capacity for a page that doesn't have special
-// requirements. This is enough to support a very large number of cells.
+// StandardCapacity is the standard capacity for a page that doesn't have
+// special requirements. This is enough to support a very large number of cells.
 // The standard capacity is chosen as the fast-path for allocation since
 // pages of standard capacity use a pooled allocator instead of single-use
 // mmaps.
@@ -209,8 +208,7 @@ type TrailingUtf8State struct {
 	Cells uint
 }
 
-// Encode the page contents as UTF-8.
-//
+// EncodeUtf8 encodes the page contents as UTF-8.
 // If precending is non-null, then it will be used to initialize our blank
 // rows/cells count so that we can accumlate blanks across multiple pages.
 func (p *Page) EncodeUtf8(w io.Writer, opts EncodeUtf8Options) (int64, error) {
@@ -235,7 +233,7 @@ func (p *Page) EncodeUtf8(w io.Writer, opts EncodeUtf8Options) (int64, error) {
 
 		// we have blank rows to process here.
 		for range blankRows {
-			if err := w.WriteByte('\n'); err != nil {
+			if _, err := w.Write([]byte{'\n'}); err != nil {
 				return 0, err
 			}
 			written++
@@ -274,7 +272,7 @@ func (p *Page) EncodeUtf8(w io.Writer, opts EncodeUtf8Options) (int64, error) {
 
 			if blankCells > 0 {
 				for range blankCells {
-					if err := w.WriteByte(' '); err != nil {
+					if _, err := w.Write([]byte{' '}); err != nil {
 						return 0, err
 					}
 					written++

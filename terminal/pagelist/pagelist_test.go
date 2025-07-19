@@ -3,7 +3,7 @@ package pagelist
 import (
 	"testing"
 
-	"github.com/hnimtadd/termio/coordinate"
+	"github.com/hnimtadd/termio/terminal/coordinate"
 	"github.com/hnimtadd/termio/terminal/page"
 	"github.com/hnimtadd/termio/terminal/point"
 	"github.com/hnimtadd/termio/terminal/size"
