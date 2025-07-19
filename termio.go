@@ -5,7 +5,7 @@ import (
 	"runtime/debug"
 
 	"github.com/hnimtadd/termio/logger"
-	terminalPkg "github.com/hnimtadd/termio/terminal"
+	"github.com/hnimtadd/termio/terminal"
 	"github.com/hnimtadd/termio/terminal/core"
 	"github.com/hnimtadd/termio/terminal/size"
 	"github.com/hnimtadd/termio/terminal/stream"
@@ -15,7 +15,7 @@ type TerminalIO struct {
 	// The terminal emulator internal state. This is the abstract "terminal"
 	// that manages input, grid updating, etc. and is renderer-agnostic. It
 	// just stores internal state about a grid.
-	terminal *terminalPkg.Terminal
+	terminal *terminal.Terminal
 
 	// The stream parser. This parses the stream of escape codes and so on
 	// from the child process and calls callbacks in the stream handler.
@@ -38,8 +38,8 @@ func NewTerminalIO(opts Options) *TerminalIO {
 	modes := core.ModePacked
 
 	// Create a new terminal instance
-	term := terminalPkg.NewTerminal(
-		terminalPkg.Options{
+	term := terminal.NewTerminal(
+		terminal.Options{
 			Rows:   opts.Rows,
 			Cols:   opts.Cols,
 			Modes:  modes,
