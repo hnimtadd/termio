@@ -11,7 +11,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 )
 
-// The style attribute for a cell.
+// Style attribute for a cell.
 type Style struct {
 	// Various colors, self-explanatory
 	ForegroundColor Color
@@ -29,7 +29,7 @@ type Style struct {
 	Underline     sgr.UnderlineType
 }
 
-// Returns the bg color for a cell with this style given the cell
+// BG returns the bg color for a cell with this style given the cell
 // that has this style and the palette to use.
 //
 // Note that generally if a cell is a color-only cell, it SHOULD
@@ -58,7 +58,7 @@ func (s *Style) BG(cell *page.Cell, palette *color.Palette) *color.RGB {
 	return nil
 }
 
-// Return the fg color for a cell with this style given the palette.
+// FG returns the fg color for a cell with this style given the palette.
 func (s *Style) FG(
 	cell *page.Cell,
 	palette *color.Palette,
@@ -81,7 +81,7 @@ func (s *Style) FG(
 	return nil
 }
 
-// Return the underline color for this style.
+// UCloer returns the underline color for this style.
 func (s *Style) UColor(
 	palette *color.Palette,
 ) *color.RGB {

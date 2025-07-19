@@ -121,7 +121,6 @@ func (t *Terminal) CarriageReturn() {
 	t.Screen.SetCursorHorizontalAbs(x)
 }
 
-// EraseInDisplay
 func (t *Terminal) EraseInDisplay(mode csi.EDMode) {
 	switch mode {
 	case csi.EDModeComplete:
@@ -212,7 +211,7 @@ func (t *Terminal) EraseInLine(mode csi.ELMode) {
 		start = 0
 		end = t.cols
 	default:
-		t.logger.Errorf("unimplemented erase line mode: %s", mode)
+		t.logger.Error("unimplemented erase line", "mode", mode)
 		return
 	}
 

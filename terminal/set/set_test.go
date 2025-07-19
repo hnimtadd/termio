@@ -8,7 +8,7 @@ import (
 
 func TestSet_AddAndLookup(t *testing.T) {
 	set := newTestSet()
-	item := &TestSet_Hashable{val: 42}
+	item := &TestSetHashable{val: 42}
 
 	_, found := set.Lookup(item)
 	assert.False(t, found, "expected item not to be found before adding")
@@ -24,7 +24,7 @@ func TestSet_AddAndLookup(t *testing.T) {
 
 func TestSet_RefCounting(t *testing.T) {
 	set := newTestSet()
-	item := &TestSet_Hashable{val: 1}
+	item := &TestSetHashable{val: 1}
 
 	id := set.Add(item)
 	assert.NotEqual(t, 0, id, "expected non-zero ID after adding item")
@@ -62,7 +62,7 @@ func TestSet_RefCounting(t *testing.T) {
 
 func TestSet_AddDuplicateIncrementsRef(t *testing.T) {
 	set := newTestSet()
-	item := &TestSet_Hashable{val: 99}
+	item := &TestSetHashable{val: 99}
 
 	id1 := set.Add(item)
 	id2 := set.Add(item)
@@ -76,7 +76,7 @@ func TestSet_AddDuplicateIncrementsRef(t *testing.T) {
 
 func TestSet_DeleteItem(t *testing.T) {
 	set := newTestSet()
-	item := &TestSet_Hashable{val: 123}
+	item := &TestSetHashable{val: 123}
 	id := set.Add(item)
 
 	set.DeleteItem(id)
@@ -86,8 +86,8 @@ func TestSet_DeleteItem(t *testing.T) {
 
 func TestSet_Count(t *testing.T) {
 	set := newTestSet()
-	item1 := &TestSet_Hashable{val: 1}
-	item2 := &TestSet_Hashable{val: 2}
+	item1 := &TestSetHashable{val: 1}
+	item2 := &TestSetHashable{val: 2}
 
 	set.Add(item1)
 	set.Add(item2)
@@ -202,21 +202,21 @@ func newTestSet() *RefCountedSet {
 	})
 }
 
-type TestSet_Hashable struct {
+type TestSetHashable struct {
 	val uint64
 }
 
-func (t *TestSet_Hashable) Hash() uint64 {
+func (t *TestSetHashable) Hash() uint64 {
 	return t.val
 }
 
-func (t *TestSet_Hashable) Equals(other Hashable) bool {
-	o, ok := other.(*TestSet_Hashable)
+func (t *TestSetHashable) Equals(other Hashable) bool {
+	o, ok := other.(*TestSetHashable)
 	return ok && o.val == t.val
 }
 
-func (t *TestSet_Hashable) Delete() {}
+func (t *TestSetHashable) Delete() {}
 
-func newTestHashable(val uint64) *TestSet_Hashable {
-	return &TestSet_Hashable{val: val}
+func newTestHashable(val uint64) *TestSetHashable {
+	return &TestSetHashable{val: val}
 }

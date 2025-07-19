@@ -3,7 +3,7 @@
 package screenmock
 
 import (
-	io "github.com/hnimtadd/termio/io"
+	"io"
 	page "github.com/hnimtadd/termio/terminal/page"
 	point "github.com/hnimtadd/termio/terminal/point"
 	screen "github.com/hnimtadd/termio/terminal/screen"

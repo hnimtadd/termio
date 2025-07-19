@@ -103,9 +103,6 @@ checkLoop:
 
 	id := s.Insert(uint64(s.nextID), value)
 	items[id].meta.ref += 1
-	if items[id].meta.ref != 1 {
-		fmt.Println("stop")
-	}
 	utils.Assert(
 		items[id].meta.ref == 1,
 		fmt.Sprintf("item ref count should be 1 instead of %d",
@@ -113,6 +110,7 @@ checkLoop:
 	)
 	s.living++
 
+	// id is different nextID if we already resurrect an item on the way.
 	if id == ID(s.nextID) {
 		s.nextID++
 	}
@@ -137,13 +135,17 @@ func (s *RefCountedSet) Insert(newID uint64, value Hashable) ID {
 		},
 	}
 
-	hash := value.Hash()
-
+	// ID that we are currently hold, we use this while swap elements or
+	// resurrect them.
 	heldID := newID
 	heldItem := newItem
-	chosenId := newID
 
-	for i := 0; i <= len(items); i++ {
+	// The final ID that the new item will be inserted to
+	chosenID := newID
+
+	hash := value.Hash()
+
+	for i := 0; i <= cap(items); i++ {
 		p := (hash + uint64(i)) % uint64(len(items))
 		id := table[p]
 
@@ -171,7 +173,7 @@ func (s *RefCountedSet) Insert(newID uint64, value Hashable) ID {
 			// Only resurrect this item if it has a
 			// smaller id than the one we were given.
 			if id < ID(newID) {
-				chosenId = uint64(id)
+				chosenID = uint64(id)
 			}
 			// Put the currently held item in to the
 			// bucket of the item that we just reaped.
@@ -210,12 +212,13 @@ func (s *RefCountedSet) Insert(newID uint64, value Hashable) ID {
 	// Our chosen ID may have changed if we decided
 	// to re-use a dead item's ID, so we make sure
 	// the chosen bucket contains the correct ID.
-	table[newItem.meta.bucketID] = ID(chosenId)
+	table[newItem.meta.bucketID] = ID(chosenID)
 
+	fmt.Println("add", newItem.data.Hash(), "to", chosenID)
 	// Finally place our new item in to our array.
-	items[chosenId] = newItem
+	items[chosenID] = newItem
 
-	return ID(chosenId)
+	return ID(chosenID)
 }
 
 // Delete an item, removing any references from the table, and freeing its ID

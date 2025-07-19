@@ -5,7 +5,6 @@ package screen
 import (
 	"fmt"
 
-	"github.com/hnimtadd/termio/io"
 	"github.com/hnimtadd/termio/terminal/color"
 	pagepkg "github.com/hnimtadd/termio/terminal/page"
 	"github.com/hnimtadd/termio/terminal/pagelist"
@@ -18,6 +17,7 @@ import (
 	"github.com/hnimtadd/termio/terminal/utils"
 	dw "github.com/mattn/go-runewidth"
 	"golang.org/x/text/encoding/unicode"
+	"io"
 )
 
 //go:generate mockery --outpkg=screenmock --name=ScreenInt --filename=screen_mock.go --structname=MockScreen
