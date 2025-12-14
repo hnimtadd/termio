@@ -91,13 +91,13 @@ func (t *TerminalIO) ProcessOutput(buf []byte) (err error) {
 // consider ProcessOutput for better performance
 func (t *TerminalIO) Process(c byte) (err error) {
 	// Process the output from the pty
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		logging.Error("Panic in Process: %v", r)
-	// 		fmt.Println(string(debug.Stack()))
-	// 		err = fmt.Errorf("panic in Process: %v", r)
-	// 	}
-	// }()
+	defer func() {
+		if r := recover(); r != nil {
+			t.logger.Error("Panic in Process: %v", r)
+			fmt.Println(string(debug.Stack()))
+			err = fmt.Errorf("panic in Process: %v", r)
+		}
+	}()
 	t.terminalStream.Next(c)
 	err = nil
 	return

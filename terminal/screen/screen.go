@@ -4,8 +4,8 @@ package screen
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/hnimtadd/termio/io"
 	"github.com/hnimtadd/termio/terminal/color"
 	pagepkg "github.com/hnimtadd/termio/terminal/page"
 	"github.com/hnimtadd/termio/terminal/pagelist"
