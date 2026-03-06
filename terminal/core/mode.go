@@ -28,7 +28,7 @@ var (
 	ModeDisableKeyboard = entryForMode("disable Keyboard", 2, true, false)  // KAM
 	ModeInsert          = entryForMode("insert", 4, true, false)            // IRM
 	ModeSendReceiveMode = entryForMode("send_receive_mode", 12, true, true) // SRM
-	ModeLineFeed        = entryForMode("line feed", 20, true, false)        // LNM
+	ModeLineFeed        = entryForMode("line feed", 20, true, true)         // LNM
 
 	// DEC modes
 	ModeWraparound = entryForMode("wraparound", 7, false, true) // DECCWM

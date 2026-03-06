@@ -25,7 +25,7 @@ const MaxCodePoints = 4096
 // debugging terminal stream issues. In addition to louder
 // output this will also disable the chunk optimizations in
 // order to make it easier to see every byte.
-const debug = true
+const debug = false
 
 // This type can be used to process a stream of tty control characters.
 // This will call various callsback functions on type T. Type T only has to
