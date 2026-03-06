@@ -23,6 +23,9 @@ type TerminalIO struct {
 	// from the child process and calls callbacks in the stream handler.
 	terminalStream *stream.Stream
 
+	// Event manager for handling callbacks
+	eventManager *EventManager
+
 	logger logger.Logger
 }
 
@@ -51,17 +54,20 @@ func NewTerminalIO(opts Options) *TerminalIO {
 
 	// Create our stream handler.
 	handler := &StreamHandler{
-		terminal: term,
-		logger:   opts.Logger,
+		terminal:     term,
+		logger:       opts.Logger,
+		eventManager: NewEventManager(),
 	}
-	return &TerminalIO{
+	termio := &TerminalIO{
 		terminal: term,
 		terminalStream: stream.NewStream(
 			handler,
 			opts.Logger,
 		),
-		logger: opts.Logger,
+		eventManager: handler.eventManager,
+		logger:       opts.Logger,
 	}
+	return termio
 }
 
 // resize the terminal
@@ -159,4 +165,19 @@ func (t *TerminalIO) Close() error {
 		t.logger.Info("TerminalIO closed")
 	}
 	return nil
+}
+
+// RegisterCallback registers a callback for a specific event type
+func (t *TerminalIO) RegisterCallback(eventType EventType, callback EventCallback) {
+	t.eventManager.RegisterCallback(eventType, callback)
+}
+
+// UnregisterCallback removes a callback for a specific event type
+func (t *TerminalIO) UnregisterCallback(eventType EventType, callback EventCallback) {
+	t.eventManager.UnregisterCallback(eventType, callback)
+}
+
+// RegisterAllEvents registers the same callback for all event types
+func (t *TerminalIO) RegisterAllEvents(callback EventCallback) {
+	t.eventManager.RegisterAllEvents(callback)
 }

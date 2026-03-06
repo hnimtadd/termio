@@ -38,6 +38,9 @@ type StreamHandler struct {
 	// as XGETTCAP.
 	dcs dcs.Handler
 
+	// Event manager for callbacks
+	eventManager *EventManager
+
 	logger logger.Logger
 }
 
@@ -65,6 +68,15 @@ func (s *StreamHandler) Backspace() {
 
 // CarriageReturn implements streamHandler.
 func (s *StreamHandler) CarriageReturn() {
+	// Emit event before processing
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeCarriageReturn,
+		Data: struct{ X, Y int }{
+			X: int(s.terminal.Screen.Cursor.X),
+			Y: int(s.terminal.Screen.Cursor.Y),
+		},
+	})
+	
 	s.terminal.CarriageReturn()
 }
 
@@ -110,6 +122,15 @@ func (s *StreamHandler) InsertLines(repeated uint16) {
 
 // LineFeed implements streamHandler.
 func (s *StreamHandler) LineFeed() {
+	// Emit event before processing
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeLineFeed,
+		Data: struct{ X, Y int }{
+			X: int(s.terminal.Screen.Cursor.X),
+			Y: int(s.terminal.Screen.Cursor.Y),
+		},
+	})
+	
 	s.terminal.LineFeed()
 }
 
@@ -121,6 +142,18 @@ func (s *StreamHandler) NextLine() {
 
 // Print implements streamHandler.
 func (s *StreamHandler) Print(c uint32) {
+	// Emit character event
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeCharacter,
+		Data: CharacterEvent{
+			Char: rune(c),
+			Position: struct{ X, Y int }{
+				X: int(s.terminal.Screen.Cursor.X),
+				Y: int(s.terminal.Screen.Cursor.Y),
+			},
+		},
+	})
+	
 	s.terminal.Print(c)
 }
 
@@ -147,6 +180,18 @@ func (s *StreamHandler) SetCursorLeft(offset uint16) {
 
 // SetCursorPosition implements streamHandler.
 func (s *StreamHandler) SetCursorPosition(row uint16, col uint16) {
+	// Emit cursor move event
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeCursorMove,
+		Data: CursorMoveEvent{
+			FromX:     int(s.terminal.Screen.Cursor.X),
+			FromY:     int(s.terminal.Screen.Cursor.Y),
+			ToX:       int(col - 1), // Convert to 0-based
+			ToY:       int(row - 1), // Convert to 0-based
+			Direction: "position",
+		},
+	})
+	
 	s.terminal.SetCursorPosition(row, col)
 }
 
@@ -178,6 +223,14 @@ func (s *StreamHandler) SetCursorUp(offset uint16, carriage bool) {
 
 // SetGraphicsRendition implements streamHandler.
 func (s *StreamHandler) SetGraphicsRendition(attr *sgr.Attribute) {
+	// Emit SGR event
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeSGR,
+		Data: SGREvent{
+			Attribute: attr,
+		},
+	})
+	
 	switch attr.Type {
 	case sgr.AttributeTypeUnknown:
 		// Only log warning for truly unknown attributes, not standard ANSI colors
@@ -209,6 +262,17 @@ func (s *StreamHandler) SetMode(mode core.Mode, enabled bool) {
 		// Mode 0 is defined as error/ignored mode - silently ignore it
 		return
 	}
+	
+	// Emit mode change event
+	s.eventManager.EmitEvent(&Event{
+		Type: EventTypeMode,
+		Data: ModeEvent{
+			ModeName: mode.Name,
+			Value:    uint16(mode.Value), // Convert int to uint16
+			Enabled:  enabled,
+			ANSI:     mode.Ansi,
+		},
+	})
 	
 	s.terminal.Modes.Set(mode, enabled)
 	
