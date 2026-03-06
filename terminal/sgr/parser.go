@@ -224,6 +224,13 @@ func (p *Parser) next() func() (attr *Attribute, ok bool) {
 			return &Attribute{Type: AttributeTypeResetInvisible}, true
 		case 29:
 			return &Attribute{Type: AttributeTypeResetStrikethrough}, true
+		// Standard ANSI foreground colors (30-37)
+		case 30, 31, 32, 33, 34, 35, 36, 37:
+			// For now, we don't have indexed color support, so treat as unknown but handled
+			return &Attribute{
+				Type:    AttributeTypeUnknown,
+				Unknown: unknown{Full: p.Params, Partial: slice},
+			}, true
 		case 38:
 			if len(slice) >= 2 {
 				switch slice[1] {
@@ -243,6 +250,16 @@ func (p *Parser) next() func() (attr *Attribute, ok bool) {
 					return nil, true
 				}
 			}
+		case 39:
+			// Reset/default foreground color
+			return &Attribute{Type: AttributeTypeResetFg}, true
+		// Standard ANSI background colors (40-47)
+		case 40, 41, 42, 43, 44, 45, 46, 47:
+			// For now, we don't have indexed color support, so treat as unknown but handled
+			return &Attribute{
+				Type:    AttributeTypeUnknown,
+				Unknown: unknown{Full: p.Params, Partial: slice},
+			}, true
 		case 48:
 			if len(slice) >= 2 {
 				switch slice[1] {

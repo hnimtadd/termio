@@ -25,10 +25,11 @@ func entryForMode(name string, value int, ansi bool, defaultMode bool) Mode {
 
 var (
 	// ansi modes
-	ModeDisableKeyboard = entryForMode("disable Keyboard", 2, true, false)  // KAM
-	ModeInsert          = entryForMode("insert", 4, true, false)            // IRM
-	ModeSendReceiveMode = entryForMode("send_receive_mode", 12, true, true) // SRM
-	ModeLineFeed        = entryForMode("line feed", 20, true, true)         // LNM
+	ModeError           = entryForMode("error (ignored)", 0, true, false)       // Error mode, typically ignored
+	ModeDisableKeyboard = entryForMode("disable Keyboard", 2, true, false)     // KAM
+	ModeInsert          = entryForMode("insert", 4, true, false)               // IRM
+	ModeSendReceiveMode = entryForMode("send_receive_mode", 12, true, true)    // SRM
+	ModeLineFeed        = entryForMode("line feed", 20, true, true)            // LNM
 
 	// DEC modes
 	ModeWraparound = entryForMode("wraparound", 7, false, true) // DECCWM
@@ -37,6 +38,7 @@ var (
 	// The full list of avialbe entries. For documentation on these modes, see
 	// how they are used in the VT100 and ECMA-48 standards or google their values.
 	entries = []Mode{
+		ModeError,
 		ModeDisableKeyboard,
 		ModeInsert,
 		ModeSendReceiveMode,
