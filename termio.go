@@ -58,6 +58,7 @@ func NewTerminalIO(opts Options) *TerminalIO {
 			handler,
 			opts.Logger,
 		),
+		logger: opts.Logger,
 	}
 }
 
@@ -113,5 +114,11 @@ func (t *TerminalIO) Write(p []byte) (n int, err error) {
 }
 
 func (t *TerminalIO) Close() error {
-	panic("unimplemented")
+	// Currently there are no resources that need explicit cleanup
+	// The terminal and stream are managed by Go's garbage collector
+	// This method is here for interface compatibility and future resource management
+	if t.logger != nil {
+		t.logger.Info("TerminalIO closed")
+	}
+	return nil
 }

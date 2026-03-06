@@ -194,7 +194,15 @@ func (s *StreamHandler) TabSet() {
 // SetMode implements streamHandler.
 func (s *StreamHandler) SetMode(mode core.Mode, enabled bool) {
 	s.terminal.Modes.Set(mode, enabled)
-	panic("unimplemented")
+	
+	// Log mode changes for debugging
+	if s.logger != nil {
+		s.logger.Info("Terminal mode changed", 
+			"mode", mode.Name, 
+			"value", mode.Value, 
+			"enabled", enabled,
+			"ansi", mode.Ansi)
+	}
 }
 
 // ---------------- IGNORE THIS ----------------

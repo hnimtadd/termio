@@ -69,7 +69,10 @@ func InitPage(cap Capacity) *Page {
 	// init the cells.
 	cells := make([]*Cell, cap.Cols*cap.Rows)
 	for i := range cells {
-		cells[i] = &Cell{}
+		cells[i] = &Cell{
+			ContentTag: ContentTagCP,  // Set proper content tag
+			StyleID:    styleid.DefaultID,
+		}
 	}
 
 	rows := make([]*Row, cap.Rows)
@@ -94,14 +97,42 @@ func InitPage(cap Capacity) *Page {
 	}
 }
 
+// NewPage is an alias for InitPage for consistency with other constructors
+func NewPage(cap Capacity) *Page {
+	return InitPage(cap)
+}
+
 func (p *Page) MoveCells(
 	srcRow *Row,
-	left size.CellCountInt,
+	srcLeft size.CellCountInt,
 	dstRow *Row,
-	param4 size.CellCountInt,
-	int size.CellCountInt,
+	dstLeft size.CellCountInt,
+	count size.CellCountInt,
 ) {
-	panic("unimplemented")
+	// Validate bounds
+	if srcLeft+count > size.CellCountInt(len(srcRow.Cells)) || 
+	   dstLeft+count > size.CellCountInt(len(dstRow.Cells)) {
+		return
+	}
+
+	// Move cells from source to destination
+	for i := size.CellCountInt(0); i < count; i++ {
+		srcCell := srcRow.Cells[srcLeft+i]
+		dstCell := dstRow.Cells[dstLeft+i]
+		
+		// Copy cell content
+		*dstCell = *srcCell
+		
+		// Clear source cell
+		srcCell.ContentTag = ContentTagCP
+		srcCell.ContentCP = 0
+		srcCell.StyleID = 0
+		srcCell.Wide = WideNarrow
+		srcCell.IsDirty = true
+		
+		// Mark destination as dirty
+		dstCell.IsDirty = true
+	}
 }
 
 // A helper that can be used to assert the integrity of the page. This is no-op
@@ -112,17 +143,51 @@ func (p *Page) AssertIntegrity() {
 }
 
 func (p *Page) ClonePartialRowFrom(
-	data *Page,
+	srcPage *Page,
 	dstRow *Row,
 	srcRow *Row,
 	left size.CellCountInt,
-	int size.CellCountInt,
+	right size.CellCountInt,
 ) error {
-	panic("unimplemented")
+	// Validate bounds
+	if left >= right || right > size.CellCountInt(len(srcRow.Cells)) || 
+	   right > size.CellCountInt(len(dstRow.Cells)) {
+		return ErrOutOfMemory
+	}
+
+	// Clone cells from source row to destination row
+	for i := left; i < right; i++ {
+		srcCell := srcRow.Cells[i]
+		dstCell := dstRow.Cells[i]
+		
+		// Copy cell content
+		*dstCell = *srcCell
+		dstCell.IsDirty = true
+		
+		// Handle style references if different pages
+		if srcPage != p && srcCell.StyleID != 0 {
+			// For cross-page cloning, we'd need to handle style ID mapping
+			// For now, reset to default style to avoid dangling references
+			dstCell.StyleID = 0
+		}
+	}
+	
+	return nil
 }
 
 func (p *Page) SwapCells(src *Cell, dst *Cell) {
-	panic("unimplemented")
+	// Store source cell content
+	temp := *src
+	
+	// Copy destination to source
+	*src = *dst
+	
+	// Copy stored source to destination
+	*dst = temp
+	
+	// Mark both cells as dirty
+	src.IsDirty = true
+	dst.IsDirty = true
 }
 
 // Temporarily pause integrity checks. This is useful when we are
@@ -154,7 +219,19 @@ type Capacity struct {
 }
 
 func (c Capacity) Size() uint64 {
-	panic("unimplemented")
+	// Calculate memory usage for this page capacity
+	// Each cell takes a fixed amount of memory plus style overhead
+	cellSize := uint64(32) // Estimated size per cell in bytes
+	styleSize := uint64(64) // Estimated size per style entry
+	
+	totalCells := uint64(c.Cols) * uint64(c.Rows)
+	cellMemory := totalCells * cellSize
+	styleMemory := uint64(c.Styles) * styleSize
+	
+	// Add overhead for page metadata
+	overhead := uint64(1024) // Page struct overhead
+	
+	return cellMemory + styleMemory + overhead
 }
 
 type Adjustment struct {
