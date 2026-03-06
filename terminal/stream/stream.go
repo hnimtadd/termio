@@ -297,9 +297,14 @@ func (s *Stream) execute(c uint8) {
 			s.logger.Warn("unimplemented execute", "codepoint", c)
 		}
 
+	// Handle Bell character (used by completion systems) 
+	case c0.BEL:
+		// Bell character - silently ignore it (some terminals beep, but we'll just ignore)
+		return
+
 	// KAI do not support these characters as the moment, just put them here
 	// as a TODO for later enhancement.
-	case c0.NUL, c0.ENQ, c0.BEL, c0.SO, c0.SI:
+	case c0.NUL, c0.ENQ, c0.SO, c0.SI:
 		s.logger.Warn("unimplemented characters, ignoring", "codepoint", c)
 		return
 
@@ -721,7 +726,10 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 			if mode := core.ModeFromInt(modeInt, ansiMode); mode != nil {
 				handler.SetMode(*mode, true)
 			} else {
-				s.logger.Warn("unimplemented mode", "mode", modeInt)
+				// Don't warn about mode 0 (error/ignored mode) as it's expected to be unimplemented
+				if modeInt != 0 {
+					s.logger.Warn("unimplemented mode", "mode", modeInt)
+				}
 			}
 		}
 
@@ -745,7 +753,10 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 			if mode := core.ModeFromInt(modeInt, ansiMode); mode != nil {
 				handler.SetMode(*mode, false)
 			} else {
-				s.logger.Warn("unimplemented mode", "mode", modeInt)
+				// Don't warn about mode 0 (error/ignored mode) as it's expected to be unimplemented
+				if modeInt != 0 {
+					s.logger.Warn("unimplemented mode", "mode", modeInt)
+				}
 			}
 		}
 	case 'q':

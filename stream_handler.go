@@ -204,6 +204,12 @@ func (s *StreamHandler) TabSet() {
 
 // SetMode implements streamHandler.
 func (s *StreamHandler) SetMode(mode core.Mode, enabled bool) {
+	// Handle special modes that should be ignored
+	if mode.Name == "error (ignored)" {
+		// Mode 0 is defined as error/ignored mode - silently ignore it
+		return
+	}
+	
 	s.terminal.Modes.Set(mode, enabled)
 	
 	// Log mode changes for debugging
