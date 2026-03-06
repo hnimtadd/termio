@@ -748,6 +748,44 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 				s.logger.Warn("unimplemented mode", "mode", modeInt)
 			}
 		}
+	case 'q':
+		// DECSCUSR - Set Cursor Style
+		switch len(c.Intermediates) {
+		case 0:
+			// Standard cursor style sequence without space
+			var style uint16
+			switch len(c.Params) {
+			case 0:
+				style = 1 // Default cursor style
+			case 1:
+				style = c.Params[0]
+			default:
+				s.logger.Warn("invalid DECSCUSR command", "codepoint", c)
+				return
+			}
+			s.logger.Debug("cursor style command", "style", style)
+		case 1:
+			// DECSCUSR with space intermediate (ESC [ Pn SP q)
+			if len(c.Intermediates) == 1 && c.Intermediates[0] == 0x20 {
+				var style uint16
+				switch len(c.Params) {
+				case 0:
+					style = 1 // Default cursor style
+				case 1:
+					style = c.Params[0]
+				default:
+					s.logger.Warn("invalid DECSCUSR command", "codepoint", c)
+					return
+				}
+				s.logger.Debug("cursor style command with space", "style", style)
+			} else {
+				s.logger.Warn("unimplemented CSI q with intermediates", "codepoint", c)
+				return
+			}
+		default:
+			s.logger.Warn("unimplemented CSI q with intermediates", "codepoint", c)
+			return
+		}
 	case '@':
 		// ICH - Insert Blanks
 		handler, implemented := s.handler.(handler.EditorHandler)

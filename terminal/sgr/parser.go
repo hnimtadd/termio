@@ -307,6 +307,20 @@ func (p *Parser) next() func() (attr *Attribute, ok bool) {
 			}
 		case 59:
 			return &Attribute{Type: AttributeTypeResetUnderlineColor}, true
+		// Bright/extended ANSI foreground colors (90-97)
+		case 90, 91, 92, 93, 94, 95, 96, 97:
+			// Bright colors - for now treat as unknown but handled
+			return &Attribute{
+				Type:    AttributeTypeUnknown,
+				Unknown: unknown{Full: p.Params, Partial: slice},
+			}, true
+		// Bright/extended ANSI background colors (100-107)
+		case 100, 101, 102, 103, 104, 105, 106, 107:
+			// Bright background colors - for now treat as unknown but handled
+			return &Attribute{
+				Type:    AttributeTypeUnknown,
+				Unknown: unknown{Full: p.Params, Partial: slice},
+			}, true
 		}
 		return &Attribute{
 			Type:    AttributeTypeUnknown,
