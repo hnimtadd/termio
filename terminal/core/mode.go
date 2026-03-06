@@ -32,8 +32,9 @@ var (
 	ModeLineFeed        = entryForMode("line feed", 20, true, true)            // LNM
 
 	// DEC modes
-	ModeWraparound = entryForMode("wraparound", 7, false, true) // DECCWM
-	ModeOrigin     = entryForMode("origin", 6, false, false)    // DECOM
+	ModeWraparound    = entryForMode("wraparound", 7, false, true)     // DECCWM
+	ModeOrigin        = entryForMode("origin", 6, false, false)        // DECOM
+	ModeBracketedPaste = entryForMode("bracketed paste", 2004, false, false) // Bracketed paste mode
 
 	// The full list of avialbe entries. For documentation on these modes, see
 	// how they are used in the VT100 and ECMA-48 standards or google their values.
@@ -45,6 +46,7 @@ var (
 		ModeLineFeed,
 		ModeWraparound,
 		ModeOrigin,
+		ModeBracketedPaste,
 	}
 )
 

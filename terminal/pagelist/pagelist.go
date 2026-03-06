@@ -436,6 +436,9 @@ type EncodeUtf8Options struct {
 	// ignored, and the full row will always be dumped.
 	TopLeft     Pin
 	BottomRight *Pin // nil means no limit
+	
+	// If true, include ANSI formatting codes
+	WithFormatting bool
 }
 
 // Encode the pagelist to utf8 to the given writer.
@@ -455,7 +458,15 @@ func (p *PageList) EncodeUtf8(w io.Writer, opts EncodeUtf8Options) (int64, error
 		pageOpts.StartY = chunk.StartY
 		pageOpts.EndY = &chunk.EndY
 
-		dataWritten, err := page.EncodeUtf8(w, pageOpts)
+		var dataWritten int64
+		var err error
+		
+		if opts.WithFormatting {
+			dataWritten, err = page.EncodeUtf8WithFormatting(w, pageOpts)
+		} else {
+			dataWritten, err = page.EncodeUtf8(w, pageOpts)
+		}
+		
 		if err != nil {
 			return 0, err
 		}

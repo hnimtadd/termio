@@ -3,6 +3,7 @@ package page
 import (
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/hnimtadd/termio/terminal/set"
 	"github.com/hnimtadd/termio/terminal/size"
@@ -369,6 +370,138 @@ func (p *Page) EncodeUtf8(w io.Writer, opts EncodeUtf8Options) (int64, error) {
 			}
 		}
 	}
+	return written, nil
+}
+
+// EncodeUtf8WithFormatting encodes the page contents as UTF-8 with ANSI formatting codes
+func (p *Page) EncodeUtf8WithFormatting(w io.Writer, opts EncodeUtf8Options) (int64, error) {
+	blankRows := opts.Preceding.Rows
+	blankCells := opts.Preceding.Cells
+	startY, endY := opts.StartY, opts.EndY
+	if endY == nil {
+		endY = &p.Size.Rows
+	}
+
+	written := int64(0)
+	var currentStyleID styleid.ID = styleid.DefaultID
+	
+	for y := startY; y < *endY; y++ {
+		row := p.GetRow(y)
+		cells := p.GetCells(row)
+
+		// If this row is blank, accumulate to avoid a bunch of extra work
+		// later. If it isn't blank, make sure we dump all our blanks.
+		if !hasTextAny(cells) {
+			blankRows += 1
+			continue
+		}
+
+		// we have blank rows to process here.
+		for range blankRows {
+			if _, err := w.Write([]byte{'\n'}); err != nil {
+				return 0, err
+			}
+			written++
+		}
+		blankRows = 0
+
+		// If we're not wrapped, we always add a newline so after the row is
+		// printed we can add a newline.
+		if !row.Wrap || !opts.Unwrap {
+			blankRows++
+		}
+
+		// If the row doesn't continue a wrap, then we need to reset our blank
+		// cell count.
+		if !row.WrapContinuation || !opts.Unwrap {
+			blankCells = 0
+		}
+
+		// go through each cell and print it.
+	processCell:
+		for _, cell := range cells {
+			// skip spacers
+			switch cell.Wide {
+			case WideSpacerHead, WideSpacerTail:
+				continue processCell
+			case WideNarrow, WideWide:
+			}
+
+			// If we have a zero value, then we accumulate a counters. We only
+			// want to turn zero values into spaces if we have a non-zero
+			// char sometime later.
+			if !cell.HasText() {
+				blankCells++
+				continue processCell
+			}
+
+			// Output accumulated blank cells as spaces
+			if blankCells > 0 {
+				for range blankCells {
+					if _, err := w.Write([]byte{' '}); err != nil {
+						return 0, err
+					}
+					written++
+				}
+				blankCells = 0
+			}
+
+			// Handle style changes
+			if cell.StyleID != currentStyleID {
+				if cell.StyleID != styleid.DefaultID {
+					// Get the actual style object
+					styleInterface := p.Styles.Get(set.ID(cell.StyleID))
+					if styleInterface != nil {
+						// Use reflection to call ToANSI method if it exists
+						styleValue := reflect.ValueOf(styleInterface)
+						toAnsiMethod := styleValue.MethodByName("ToANSI")
+						if toAnsiMethod.IsValid() {
+							results := toAnsiMethod.Call(nil)
+							if len(results) == 1 {
+								if ansiCode, ok := results[0].Interface().(string); ok && ansiCode != "" {
+									n, err := w.Write([]byte(ansiCode))
+									if err != nil {
+										return 0, err
+									}
+									written += int64(n)
+								}
+							}
+						}
+					}
+				} else {
+					// Reset to default style
+					n, err := w.Write([]byte("\033[0m"))
+					if err != nil {
+						return 0, err
+					}
+					written += int64(n)
+				}
+				currentStyleID = cell.StyleID
+			}
+
+			switch cell.ContentTag {
+			case ContentTagCP:
+				byteWritten, err := fmt.Fprintf(w, "%c", cell.ContentCP)
+				if err != nil {
+					return 0, err
+				}
+				written += int64(byteWritten)
+			case ContentTagBGColorPalette, ContentTagBGColorRGB:
+				// Unreachable since we do HasText above.
+				continue processCell
+			}
+		}
+	}
+	
+	// Reset style at the end if needed
+	if currentStyleID != styleid.DefaultID {
+		n, err := w.Write([]byte("\033[0m"))
+		if err != nil {
+			return 0, err
+		}
+		written += int64(n)
+	}
+	
 	return written, nil
 }
 

@@ -2,6 +2,7 @@ package style
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hnimtadd/termio/terminal/color"
 	"github.com/hnimtadd/termio/terminal/page"
@@ -153,6 +154,116 @@ func (s Style) Equals(other set.Hashable) bool {
 
 func (s Style) Delete() {
 	panic("Not implemented")
+}
+
+// ToANSI generates ANSI escape sequence for this style
+func (s *Style) ToANSI() string {
+	var codes []string
+	
+	// Handle bold
+	if s.Bold {
+		codes = append(codes, "1")
+	}
+	
+	// Handle italic
+	if s.Italic {
+		codes = append(codes, "3")
+	}
+	
+	// Handle faint
+	if s.Faint {
+		codes = append(codes, "2")
+	}
+	
+	// Handle underline
+	switch s.Underline {
+	case sgr.UnderlineTypeSingle:
+		codes = append(codes, "4")
+	case sgr.UnderlineTypeDouble:
+		codes = append(codes, "21")
+	}
+	
+	// Handle blink
+	if s.Blink {
+		codes = append(codes, "5")
+	}
+	
+	// Handle inverse
+	if s.Inverse {
+		codes = append(codes, "7")
+	}
+	
+	// Handle invisible
+	if s.Invisible {
+		codes = append(codes, "8")
+	}
+	
+	// Handle strikethrough
+	if s.Strikethrough {
+		codes = append(codes, "9")
+	}
+	
+	// Handle overline
+	if s.Overline {
+		codes = append(codes, "53")
+	}
+	
+	// Handle foreground color
+	switch s.ForegroundColor.Type {
+	case ColorTypePalette:
+		if s.ForegroundColor.Palette < 8 {
+			// Standard colors (30-37)
+			codes = append(codes, fmt.Sprintf("%d", 30+s.ForegroundColor.Palette))
+		} else if s.ForegroundColor.Palette < 16 {
+			// Bright colors (90-97)
+			codes = append(codes, fmt.Sprintf("%d", 82+s.ForegroundColor.Palette))
+		} else {
+			// 256-color palette
+			codes = append(codes, fmt.Sprintf("38;5;%d", s.ForegroundColor.Palette))
+		}
+	case ColorTypeRGB:
+		codes = append(codes, fmt.Sprintf("38;2;%d;%d;%d", 
+			s.ForegroundColor.RGB.R,
+			s.ForegroundColor.RGB.G,
+			s.ForegroundColor.RGB.B))
+	}
+	
+	// Handle background color
+	switch s.BackgroundColor.Type {
+	case ColorTypePalette:
+		if s.BackgroundColor.Palette < 8 {
+			// Standard colors (40-47)
+			codes = append(codes, fmt.Sprintf("%d", 40+s.BackgroundColor.Palette))
+		} else if s.BackgroundColor.Palette < 16 {
+			// Bright colors (100-107)
+			codes = append(codes, fmt.Sprintf("%d", 92+s.BackgroundColor.Palette))
+		} else {
+			// 256-color palette
+			codes = append(codes, fmt.Sprintf("48;5;%d", s.BackgroundColor.Palette))
+		}
+	case ColorTypeRGB:
+		codes = append(codes, fmt.Sprintf("48;2;%d;%d;%d",
+			s.BackgroundColor.RGB.R,
+			s.BackgroundColor.RGB.G,
+			s.BackgroundColor.RGB.B))
+	}
+	
+	// Handle underline color
+	switch s.UnderlineColor.Type {
+	case ColorTypeRGB:
+		codes = append(codes, fmt.Sprintf("58;2;%d;%d;%d",
+			s.UnderlineColor.RGB.R,
+			s.UnderlineColor.RGB.G,
+			s.UnderlineColor.RGB.B))
+	case ColorTypePalette:
+		codes = append(codes, fmt.Sprintf("58;5;%d", s.UnderlineColor.Palette))
+	}
+	
+	if len(codes) == 0 {
+		return ""
+	}
+	
+	return fmt.Sprintf("\033[%sm", strings.Join(codes, ";"))
 }
 
 // The color for an SGR attribute. A color can come from multiple sources

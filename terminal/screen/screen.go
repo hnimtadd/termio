@@ -630,6 +630,23 @@ func (s *Screen) DumpString(
 	)
 }
 
+// DumpStringWithFormatting dumps the screen content with ANSI formatting codes preserved
+func (s *Screen) DumpStringWithFormatting(w io.Writer, tl point.Tag) error {
+	tlPin := s.Pages.GetTopLeft(tl)
+	brPin := s.Pages.GetBottomRight(tl)
+	if tlPin == nil {
+		return fmt.Errorf("invalid top-left point %v for tag %v", tl, tl)
+	}
+	
+	// Use the formatting-enabled encoding
+	return s.dumpString(w, pagelist.EncodeUtf8Options{
+		Unwrap:         false,
+		TopLeft:        *tlPin,
+		BottomRight:    brPin,
+		WithFormatting: true,
+	})
+}
+
 // Set a style attribute for the current cursor.
 func (s *Screen) SetGraphicsRendition(attr *sgr.Attribute) {
 	switch attr.Type {

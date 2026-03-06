@@ -180,7 +180,18 @@ func (s *StreamHandler) SetCursorUp(offset uint16, carriage bool) {
 func (s *StreamHandler) SetGraphicsRendition(attr *sgr.Attribute) {
 	switch attr.Type {
 	case sgr.AttributeTypeUnknown:
-		s.logger.Warn("Unknown SGR attribute", "attribute", attr)
+		// Only log warning for truly unknown attributes, not standard ANSI colors
+		if len(attr.Unknown.Partial) == 1 {
+			code := attr.Unknown.Partial[0]
+			// Standard ANSI colors (30-37, 40-47, 90-97, 100-107) - don't warn
+			if !((code >= 30 && code <= 37) || (code >= 40 && code <= 47) || 
+				 (code >= 90 && code <= 97) || (code >= 100 && code <= 107)) {
+				s.logger.Warn("Unknown SGR attribute", "attribute", attr)
+			}
+		} else {
+			// Complex sequences - still log these
+			s.logger.Warn("Unknown SGR attribute", "attribute", attr)
+		}
 	default:
 		s.terminal.SetGraphicsRendition(attr)
 	}

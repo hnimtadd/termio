@@ -397,7 +397,7 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 				s.logger.Warn("invalid CUF command", "codepoint", c)
 				return
 			}
-			handler.SetCursorLeft(offset)
+			handler.SetCursorRight(offset)
 
 		default:
 			s.logger.Warn("unimplemented CSI C with intermediates", "codepoint", c)
@@ -423,7 +423,7 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 				s.logger.Warn("invalid CUB command", "codepoint", c)
 				return
 			}
-			handler.SetCursorRight(offset)
+			handler.SetCursorLeft(offset)
 
 		default:
 			s.logger.Warn("unimplemneted CSI D with Intermediates", "codepoint", c)

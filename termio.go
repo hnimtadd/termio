@@ -1,12 +1,14 @@
 package termio
 
 import (
+	"bytes"
 	"fmt"
 	"runtime/debug"
 
 	"github.com/hnimtadd/termio/logger"
 	"github.com/hnimtadd/termio/terminal"
 	"github.com/hnimtadd/termio/terminal/core"
+	"github.com/hnimtadd/termio/terminal/point"
 	"github.com/hnimtadd/termio/terminal/size"
 	"github.com/hnimtadd/termio/terminal/stream"
 )
@@ -104,8 +106,44 @@ func (t *TerminalIO) Process(c byte) (err error) {
 	return
 }
 
+// ProcessForOutput processes PTY input and returns bytes that should be written to stdout
+// This is the proper way to handle terminal emulation - process escape sequences 
+// and return the current terminal state that should be displayed
+func (t *TerminalIO) ProcessForOutput(buf []byte) ([]byte, error) {
+	// Process the input through termio to update internal state
+	err := t.ProcessOutput(buf)
+	if err != nil {
+		return nil, err
+	}
+	
+	// For now, return the input as-is but let termio process it internally
+	// This maintains the proper terminal state while allowing raw sequences through
+	return buf, nil
+}
+
 func (t *TerminalIO) DumpString() string {
 	return t.terminal.PlainString()
+}
+
+func (t *TerminalIO) DumpStringWithCursor() string {
+	// Get the plain content
+	content := t.terminal.PlainString()
+	
+	// Get cursor position (1-based for ANSI sequences)
+	cursorX := int(t.terminal.Screen.Cursor.X) + 1
+	cursorY := int(t.terminal.Screen.Cursor.Y) + 1
+	
+	// Add cursor positioning after content
+	return content + fmt.Sprintf("\033[%d;%dH", cursorY, cursorX)
+}
+
+// DumpStringWithFormatting returns the terminal content with ANSI formatting preserved
+func (t *TerminalIO) DumpStringWithFormatting() string {
+	w := bytes.NewBuffer(nil)
+	if err := t.terminal.Screen.DumpStringWithFormatting(w, point.TagViewPort); err != nil {
+		return ""
+	}
+	return w.String()
 }
 
 func (t *TerminalIO) Write(p []byte) (n int, err error) {

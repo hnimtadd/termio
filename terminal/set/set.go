@@ -337,3 +337,17 @@ func (s *RefCountedSet) Use(id ID) {
 func (s *RefCountedSet) Count() int {
 	return s.living
 }
+
+// Get retrieves an item by its ID from the set
+func (s *RefCountedSet) Get(id ID) Hashable {
+	if id == 0 || int(id) >= len(s.items) {
+		return nil
+	}
+	
+	item := s.items[id]
+	if item == nil || item.meta.ref == 0 {
+		return nil
+	}
+	
+	return item.data
+}
