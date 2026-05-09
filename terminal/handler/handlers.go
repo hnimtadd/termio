@@ -23,6 +23,18 @@ type (
 		TabSet()
 		// FullReset resets all attributes to their defaults.
 		FullReset()
+		// SaveCursor stores the current cursor state.
+		SaveCursor()
+		// RestoreCursor restores previously stored cursor state.
+		RestoreCursor()
+		// ReverseLineFeed performs reverse index and carriage return.
+		ReverseLineFeed()
+		// DesignateCharset maps a charset to G0 or G1.
+		DesignateCharset(isG1 bool, charset uint8)
+		// ShiftIn selects the G0 charset for printing.
+		ShiftIn()
+		// ShiftOut selects the G1 charset for printing.
+		ShiftOut()
 	}
 
 	SGRHandler interface {
@@ -85,5 +97,7 @@ type (
 		SetCursorTabLeft(repeated uint16)
 		// CarriageReturn moves cursor to left margin of the current line.
 		CarriageReturn()
+		// SetTopBottomMargins sets the vertical scrolling region.
+		SetTopBottomMargins(top, bottom uint16)
 	}
 )

@@ -56,3 +56,22 @@ func TestParserNext(t *testing.T) {
 		})
 	}
 }
+
+func TestParserOSCPathIsInitializedAndTerminates(t *testing.T) {
+	p := NewParser()
+
+	input := []uint8{0x9D, '0', ';', 'x', 0x9C}
+	var endAction *Action
+	for _, b := range input {
+		actions := p.Next(b)
+		for _, action := range actions {
+			if action != nil && action.Type == ActionOSCEnd {
+				endAction = action
+			}
+		}
+	}
+
+	assert.NotNil(t, endAction)
+	assert.NotNil(t, endAction.OSCDispatchData)
+	assert.Equal(t, StateGround, p.State)
+}

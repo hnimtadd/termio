@@ -148,8 +148,9 @@ func TestTerminal_InputThatForcesScroll(t *testing.T) {
 }
 
 func TestTerminal_InputUniqueStylePerCell(t *testing.T) {
-	cols := 30
-	rows := 30
+	// Keep unique styles under per-page style capacity (128).
+	cols := 10
+	rows := 10
 	term := NewTerminal(Options{
 		Cols:   cols,
 		Rows:   rows,
@@ -213,4 +214,80 @@ func TestTerminal_PrintSingleVeryLongLine(t *testing.T) {
 	for range 10000 {
 		term.Print('x')
 	}
+}
+
+func newVT102TestTerminal(cols, rows int) *Terminal {
+	return NewTerminal(Options{
+		Cols:   cols,
+		Rows:   rows,
+		Modes:  core.ModePacked,
+		Logger: logger.DefaultLogger,
+	})
+}
+
+func TestTerminalCursorUpDownWithCarriage(t *testing.T) {
+	term := newVT102TestTerminal(10, 5)
+	term.SetCursorPosition(2, 5)
+
+	term.SetCursorDown(2, true)
+	assert.Equal(t, size.CellCountInt(3), term.Screen.Cursor.Y)
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.X)
+
+	term.SetCursorPosition(4, 8)
+	term.SetCursorUp(2, true)
+	assert.Equal(t, size.CellCountInt(1), term.Screen.Cursor.Y)
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.X)
+}
+
+func TestTerminalSaveRestoreCursorState(t *testing.T) {
+	term := newVT102TestTerminal(10, 5)
+	term.SetCursorPosition(3, 4)
+	term.ShiftOut()
+
+	term.SaveCursor()
+	term.SetCursorPosition(1, 1)
+	term.ShiftIn()
+	term.RestoreCursor()
+
+	assert.Equal(t, size.CellCountInt(2), term.Screen.Cursor.Y)
+	assert.Equal(t, size.CellCountInt(3), term.Screen.Cursor.X)
+	assert.Equal(t, 1, term.activeSet)
+}
+
+func TestTerminalReverseLineFeed(t *testing.T) {
+	term := newVT102TestTerminal(10, 5)
+	term.SetCursorPosition(2, 5)
+
+	term.ReverseLineFeed()
+
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.Y)
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.X)
+}
+
+func TestTerminalCharsetDesignationAndShift(t *testing.T) {
+	term := newVT102TestTerminal(2, 1)
+
+	term.DesignateCharset(true, '0')
+	term.ShiftOut()
+	term.Print('q')
+	term.ShiftIn()
+	term.Print('q')
+
+	assert.Equal(t, "─q", term.PlainString())
+}
+
+func TestTerminalSetTopBottomMargins(t *testing.T) {
+	term := newVT102TestTerminal(10, 8)
+	term.SetCursorPosition(5, 5)
+
+	term.SetTopBottomMargins(2, 6)
+	assert.Equal(t, size.CellCountInt(1), term.scrollingRegion.top)
+	assert.Equal(t, size.CellCountInt(5), term.scrollingRegion.bottom)
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.X)
+	assert.Equal(t, size.CellCountInt(0), term.Screen.Cursor.Y)
+
+	// Invalid margins are ignored.
+	term.SetTopBottomMargins(7, 3)
+	assert.Equal(t, size.CellCountInt(1), term.scrollingRegion.top)
+	assert.Equal(t, size.CellCountInt(5), term.scrollingRegion.bottom)
 }
