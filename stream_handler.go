@@ -76,7 +76,7 @@ func (s *StreamHandler) CarriageReturn() {
 			Y: int(s.terminal.Screen.Cursor.Y),
 		},
 	})
-	
+
 	s.terminal.CarriageReturn()
 }
 
@@ -130,7 +130,7 @@ func (s *StreamHandler) LineFeed() {
 			Y: int(s.terminal.Screen.Cursor.Y),
 		},
 	})
-	
+
 	s.terminal.LineFeed()
 }
 
@@ -138,6 +138,30 @@ func (s *StreamHandler) LineFeed() {
 func (s *StreamHandler) NextLine() {
 	s.terminal.Index()
 	s.terminal.CarriageReturn()
+}
+
+func (s *StreamHandler) ReverseLineFeed() {
+	s.terminal.ReverseLineFeed()
+}
+
+func (s *StreamHandler) SaveCursor() {
+	s.terminal.SaveCursor()
+}
+
+func (s *StreamHandler) RestoreCursor() {
+	s.terminal.RestoreCursor()
+}
+
+func (s *StreamHandler) DesignateCharset(isG1 bool, charset uint8) {
+	s.terminal.DesignateCharset(isG1, charset)
+}
+
+func (s *StreamHandler) ShiftIn() {
+	s.terminal.ShiftIn()
+}
+
+func (s *StreamHandler) ShiftOut() {
+	s.terminal.ShiftOut()
 }
 
 // Print implements streamHandler.
@@ -153,7 +177,7 @@ func (s *StreamHandler) Print(c uint32) {
 			},
 		},
 	})
-	
+
 	s.terminal.Print(c)
 }
 
@@ -191,7 +215,7 @@ func (s *StreamHandler) SetCursorPosition(row uint16, col uint16) {
 			Direction: "position",
 		},
 	})
-	
+
 	s.terminal.SetCursorPosition(row, col)
 }
 
@@ -216,6 +240,10 @@ func (s *StreamHandler) SetCursorTabRight(repeated uint16) {
 	s.terminal.SetCursorTabRight(repeated)
 }
 
+func (s *StreamHandler) SetTopBottomMargins(top, bottom uint16) {
+	s.terminal.SetTopBottomMargins(top, bottom)
+}
+
 // SetCursorUp implements streamHandler.
 func (s *StreamHandler) SetCursorUp(offset uint16, carriage bool) {
 	s.terminal.SetCursorUp(offset, carriage)
@@ -230,15 +258,15 @@ func (s *StreamHandler) SetGraphicsRendition(attr *sgr.Attribute) {
 			Attribute: attr,
 		},
 	})
-	
+
 	switch attr.Type {
 	case sgr.AttributeTypeUnknown:
 		// Only log warning for truly unknown attributes, not standard ANSI colors
 		if len(attr.Unknown.Partial) == 1 {
 			code := attr.Unknown.Partial[0]
 			// Standard ANSI colors (30-37, 40-47, 90-97, 100-107) - don't warn
-			if !((code >= 30 && code <= 37) || (code >= 40 && code <= 47) || 
-				 (code >= 90 && code <= 97) || (code >= 100 && code <= 107)) {
+			if !((code >= 30 && code <= 37) || (code >= 40 && code <= 47) ||
+				(code >= 90 && code <= 97) || (code >= 100 && code <= 107)) {
 				s.logger.Warn("Unknown SGR attribute", "attribute", attr)
 			}
 		} else {
@@ -262,7 +290,7 @@ func (s *StreamHandler) SetMode(mode core.Mode, enabled bool) {
 		// Mode 0 is defined as error/ignored mode - silently ignore it
 		return
 	}
-	
+
 	// Emit mode change event
 	s.eventManager.EmitEvent(&Event{
 		Type: EventTypeMode,
@@ -273,14 +301,14 @@ func (s *StreamHandler) SetMode(mode core.Mode, enabled bool) {
 			ANSI:     mode.Ansi,
 		},
 	})
-	
+
 	s.terminal.Modes.Set(mode, enabled)
-	
+
 	// Log mode changes for debugging
 	if s.logger != nil {
-		s.logger.Info("Terminal mode changed", 
-			"mode", mode.Name, 
-			"value", mode.Value, 
+		s.logger.Info("Terminal mode changed",
+			"mode", mode.Name,
+			"value", mode.Value,
 			"enabled", enabled,
 			"ansi", mode.Ansi)
 	}

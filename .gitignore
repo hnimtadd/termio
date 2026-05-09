@@ -1,1 +1,4 @@
 .envrc
+emulator
+/reference
+/termio-emulator

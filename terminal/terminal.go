@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"bytes"
+	"maps"
 
 	"github.com/hnimtadd/termio/logger"
 	"github.com/hnimtadd/termio/terminal/coordinate"
@@ -20,6 +21,17 @@ import (
 )
 
 type (
+	charset int
+
+	// CursorState captures a restorable subset of terminal state for DECSC/DECRC.
+	cursorState struct {
+		x, y        size.CellCountInt
+		pendingWrap bool
+		styleID     styleid.ID
+		originMode  bool
+		activeSet   int
+	}
+
 	Options struct {
 		Cols int // The number of columns in the terminal
 		Rows int // The number of rows in the terminal
@@ -55,6 +67,14 @@ type (
 		// The current sscrolling region.
 		scrollingRegion *ScrollingRegion
 
+		// Character set state for VT102 SI/SO and designation.
+		g0Charset charset
+		g1Charset charset
+		activeSet int // 0 => G0, 1 => G1
+
+		// Cursor save stack for DECSC/DECRC.
+		cursorSaveStack []cursorState
+
 		logger logger.Logger
 	}
 
@@ -74,7 +94,38 @@ type (
 	}
 )
 
+const (
+	charsetASCII charset = iota
+	charsetDECSpecialGraphics
+)
+
+var decSpecialGraphics = map[uint32]uint32{
+	0x60: 0x25C6, // ◆
+	0x61: 0x2592, // ▒
+	0x66: 0x25CB, // ○
+	0x67: 0x00B1, // ±
+	0x6A: 0x2518, // ┘
+	0x6B: 0x2510, // ┐
+	0x6C: 0x250C, // ┌
+	0x6D: 0x2514, // └
+	0x6E: 0x253C, // ┼
+	0x6F: 0x2500, // ─
+	0x70: 0x2500, // ─
+	0x71: 0x2500, // ─
+	0x72: 0x2500, // ─
+	0x73: 0x2500, // ─
+	0x74: 0x251C, // ├
+	0x75: 0x2524, // ┤
+	0x76: 0x2534, // ┴
+	0x77: 0x252C, // ┬
+	0x78: 0x2502, // │
+	0x7B: 0x03C0, // π
+	0x7E: 0x00B7, // ·
+}
+
 func NewTerminal(opts Options) *Terminal {
+	modeValues := maps.Clone(opts.Modes)
+	modeDefaults := maps.Clone(opts.Modes)
 	return &Terminal{
 		Screen: screen.NewScreen(
 			size.CellCountInt(opts.Cols),
@@ -82,7 +133,7 @@ func NewTerminal(opts Options) *Terminal {
 		),
 		rows:  size.CellCountInt(opts.Rows),
 		cols:  size.CellCountInt(opts.Cols),
-		Modes: core.NewModeState(opts.Modes, opts.Modes),
+		Modes: core.NewModeState(modeValues, modeDefaults),
 		tabstops: tabstops.NewTabstops(
 			size.CellCountInt(opts.Cols),
 			tabstops.TABSTOP_INTERVAL,
@@ -93,8 +144,12 @@ func NewTerminal(opts Options) *Terminal {
 			left:   0,
 			right:  size.CellCountInt(opts.Cols) - 1,
 		},
-		pwd:    "",
-		logger: opts.Logger,
+		g0Charset:       charsetASCII,
+		g1Charset:       charsetASCII,
+		activeSet:       0,
+		cursorSaveStack: []cursorState{},
+		pwd:             "",
+		logger:          opts.Logger,
 	}
 }
 
@@ -235,6 +290,14 @@ func (t *Terminal) FullReset() {
 	t.Screen.Reset()
 	t.Modes.Reset()
 	t.previousChar = nil
+	t.g0Charset = charsetASCII
+	t.g1Charset = charsetASCII
+	t.activeSet = 0
+	t.cursorSaveStack = t.cursorSaveStack[:0]
+	t.scrollingRegion.top = 0
+	t.scrollingRegion.bottom = t.rows - 1
+	t.scrollingRegion.left = 0
+	t.scrollingRegion.right = t.cols - 1
 	t.pwd = ""
 }
 
@@ -265,6 +328,7 @@ func (t *Terminal) Print(c uint32) {
 	// characters since they're so common. We can ignore control characters
 	// because they are always filtered prior.
 	var width size.CellCountInt
+	c = t.translateRune(c)
 	if c <= 0xFF {
 		width = 1
 	} else {
@@ -507,6 +571,9 @@ func (t *Terminal) SetCursorDown(offset uint16, carriage bool) {
 	adjustedCount := min(maxm, max(size.CellCountInt(offset), 1))
 
 	t.Screen.SetCursorDown(adjustedCount)
+	if carriage {
+		t.CarriageReturn()
+	}
 }
 
 // Move the cursor up amount line. If amount is greater than the maximum move
@@ -529,6 +596,9 @@ func (t *Terminal) SetCursorUp(offset uint16, carriage bool) {
 	adjustedCount := min(maxm, max(size.CellCountInt(offset), 1))
 
 	t.Screen.SetCursorUp(adjustedCount)
+	if carriage {
+		t.CarriageReturn()
+	}
 }
 
 // Move the cursor right amount collumns. If amount is greater than the maximum
@@ -690,6 +760,91 @@ func (t *Terminal) ReverseIndex() {
 		return
 	}
 	t.cursorScrollDown(1)
+}
+
+// ReverseLineFeed performs reverse index and carriage return.
+func (t *Terminal) ReverseLineFeed() {
+	t.ReverseIndex()
+	t.CarriageReturn()
+}
+
+// SaveCursor stores cursor position and related state.
+func (t *Terminal) SaveCursor() {
+	t.cursorSaveStack = append(t.cursorSaveStack, cursorState{
+		x:           t.Screen.Cursor.X,
+		y:           t.Screen.Cursor.Y,
+		pendingWrap: t.Screen.Cursor.PendingWrap,
+		styleID:     t.Screen.Cursor.StyleID,
+		originMode:  t.Modes.Get(core.ModeOrigin),
+		activeSet:   t.activeSet,
+	})
+}
+
+// RestoreCursor restores the latest saved cursor state if available.
+func (t *Terminal) RestoreCursor() {
+	if len(t.cursorSaveStack) == 0 {
+		return
+	}
+	idx := len(t.cursorSaveStack) - 1
+	saved := t.cursorSaveStack[idx]
+	t.cursorSaveStack = t.cursorSaveStack[:idx]
+
+	t.Screen.SetCursorAbs(saved.x, saved.y)
+	t.Screen.Cursor.PendingWrap = saved.pendingWrap
+	t.Screen.Cursor.StyleID = saved.styleID
+	t.activeSet = saved.activeSet
+	t.Modes.Set(core.ModeOrigin, saved.originMode)
+}
+
+// DesignateCharset designates the given charset for G0/G1.
+func (t *Terminal) DesignateCharset(isG1 bool, charsetCode uint8) {
+	ch := charsetASCII
+	if charsetCode == '0' {
+		ch = charsetDECSpecialGraphics
+	}
+	if isG1 {
+		t.g1Charset = ch
+		return
+	}
+	t.g0Charset = ch
+}
+
+// ShiftIn selects G0 as the active charset.
+func (t *Terminal) ShiftIn() {
+	t.activeSet = 0
+}
+
+// ShiftOut selects G1 as the active charset.
+func (t *Terminal) ShiftOut() {
+	t.activeSet = 1
+}
+
+// SetTopBottomMargins sets the vertical scrolling margins (DECSTBM).
+func (t *Terminal) SetTopBottomMargins(top, bottom uint16) {
+	// Default region if no explicit parameters are provided.
+	if top == 0 {
+		top = 1
+	}
+	if bottom == 0 {
+		bottom = uint16(t.rows)
+	}
+
+	// Clamp to screen bounds (1-based inputs).
+	if top > uint16(t.rows) {
+		top = uint16(t.rows)
+	}
+	if bottom > uint16(t.rows) {
+		bottom = uint16(t.rows)
+	}
+
+	// Invalid region is ignored.
+	if top >= bottom {
+		return
+	}
+
+	t.scrollingRegion.top = size.CellCountInt(top - 1)
+	t.scrollingRegion.bottom = size.CellCountInt(bottom - 1)
+	t.SetCursorPosition(1, 1)
 }
 
 // SetCursorPosition move cursor to the position indicated
@@ -1327,4 +1482,21 @@ func (t *Terminal) isDirty(pt point.Point) bool {
 // Clear all dirty bits. Testing only.
 func (t *Terminal) clearDirty() {
 	t.Screen.Pages.ClearDirty()
+}
+
+func (t *Terminal) activeCharset() charset {
+	if t.activeSet == 1 {
+		return t.g1Charset
+	}
+	return t.g0Charset
+}
+
+func (t *Terminal) translateRune(c uint32) uint32 {
+	if t.activeCharset() != charsetDECSpecialGraphics {
+		return c
+	}
+	if mapped, ok := decSpecialGraphics[c]; ok {
+		return mapped
+	}
+	return c
 }

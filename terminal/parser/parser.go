@@ -47,6 +47,7 @@ func NewParser() *Parser {
 		paramsIdx:        0,
 		paramAcc:         0,
 		paramAccIdx:      0,
+		oscParser:        &osc.Parser{},
 		table:            newParserTable(),
 		paramsSet:        utils.NewStaticBitSet(MaxParams),
 	}

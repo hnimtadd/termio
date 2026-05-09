@@ -34,6 +34,27 @@ type Options struct {
 	Logger     logger.Logger
 }
 
+// CursorPosition is a read-only cursor coordinate in 0-based cell units.
+type CursorPosition struct {
+	X int
+	Y int
+}
+
+// TerminalSize is the current terminal grid size in cells.
+type TerminalSize struct {
+	Cols int
+	Rows int
+}
+
+// TerminalSnapshot is a compact read-only view of terminal state suitable for tests.
+type TerminalSnapshot struct {
+	Content          string
+	FormattedContent string
+	Cursor           CursorPosition
+	Size             TerminalSize
+	Modes            map[string]bool
+}
+
 // Initialize the termio state.
 //
 // This will also start the child process if the termio is configured
@@ -113,7 +134,7 @@ func (t *TerminalIO) Process(c byte) (err error) {
 }
 
 // ProcessForOutput processes PTY input and returns bytes that should be written to stdout
-// This is the proper way to handle terminal emulation - process escape sequences 
+// This is the proper way to handle terminal emulation - process escape sequences
 // and return the current terminal state that should be displayed
 func (t *TerminalIO) ProcessForOutput(buf []byte) ([]byte, error) {
 	// Process the input through termio to update internal state
@@ -121,7 +142,7 @@ func (t *TerminalIO) ProcessForOutput(buf []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// For now, return the input as-is but let termio process it internally
 	// This maintains the proper terminal state while allowing raw sequences through
 	return buf, nil
@@ -134,11 +155,11 @@ func (t *TerminalIO) DumpString() string {
 func (t *TerminalIO) DumpStringWithCursor() string {
 	// Get the plain content
 	content := t.terminal.PlainString()
-	
+
 	// Get cursor position (1-based for ANSI sequences)
 	cursorX := int(t.terminal.Screen.Cursor.X) + 1
 	cursorY := int(t.terminal.Screen.Cursor.Y) + 1
-	
+
 	// Add cursor positioning after content
 	return content + fmt.Sprintf("\033[%d;%dH", cursorY, cursorX)
 }
@@ -150,6 +171,55 @@ func (t *TerminalIO) DumpStringWithFormatting() string {
 		return ""
 	}
 	return w.String()
+}
+
+// GetCursor returns the current 0-based cursor position.
+func (t *TerminalIO) GetCursor() CursorPosition {
+	return CursorPosition{
+		X: int(t.terminal.Screen.Cursor.X),
+		Y: int(t.terminal.Screen.Cursor.Y),
+	}
+}
+
+// GetSize returns the current terminal size in columns and rows.
+func (t *TerminalIO) GetSize() TerminalSize {
+	rows, cols := t.terminal.Screen.GetSize()
+	return TerminalSize{
+		Cols: int(cols),
+		Rows: int(rows),
+	}
+}
+
+// GetMode returns whether the given mode is currently enabled.
+func (t *TerminalIO) GetMode(mode core.Mode) bool {
+	return t.terminal.Modes.Get(mode)
+}
+
+// GetModeByValue looks up a mode by (value, ansi) and reports (enabled, found).
+func (t *TerminalIO) GetModeByValue(value int, ansi bool) (bool, bool) {
+	mode := core.ModeFromInt(value, ansi)
+	if mode == nil {
+		return false, false
+	}
+	return t.terminal.Modes.Get(*mode), true
+}
+
+// Snapshot returns a stable read-only view of key terminal state for assertions.
+func (t *TerminalIO) Snapshot() TerminalSnapshot {
+	return TerminalSnapshot{
+		Content:          t.DumpString(),
+		FormattedContent: t.DumpStringWithFormatting(),
+		Cursor:           t.GetCursor(),
+		Size:             t.GetSize(),
+		Modes: map[string]bool{
+			core.ModeInsert.Name:          t.GetMode(core.ModeInsert),
+			core.ModeLineFeed.Name:        t.GetMode(core.ModeLineFeed),
+			core.ModeWraparound.Name:      t.GetMode(core.ModeWraparound),
+			core.ModeOrigin.Name:          t.GetMode(core.ModeOrigin),
+			core.ModeBracketedPaste.Name:  t.GetMode(core.ModeBracketedPaste),
+			core.ModeDisableKeyboard.Name: t.GetMode(core.ModeDisableKeyboard),
+		},
+	}
 }
 
 func (t *TerminalIO) Write(p []byte) (n int, err error) {

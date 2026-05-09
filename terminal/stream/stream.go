@@ -241,7 +241,7 @@ func (s *Stream) nextNonUtf8(c uint8) {
 			}
 
 		case parser.ActionDCSHook:
-			if action.DCSHookData != nil {
+			if action.DCSHookData == nil {
 				s.logger.Warn("unimplemented hook")
 				continue
 			}
@@ -297,14 +297,25 @@ func (s *Stream) execute(c uint8) {
 			s.logger.Warn("unimplemented execute", "codepoint", c)
 		}
 
-	// Handle Bell character (used by completion systems) 
+	// Handle Bell character (used by completion systems)
 	case c0.BEL:
 		// Bell character - silently ignore it (some terminals beep, but we'll just ignore)
 		return
 
+	case c0.SO:
+		if handler, implemented := s.handler.(handler.FormatEffectorHandler); implemented {
+			handler.ShiftOut()
+		}
+		return
+	case c0.SI:
+		if handler, implemented := s.handler.(handler.FormatEffectorHandler); implemented {
+			handler.ShiftIn()
+		}
+		return
+
 	// KAI do not support these characters as the moment, just put them here
 	// as a TODO for later enhancement.
-	case c0.NUL, c0.ENQ, c0.SO, c0.SI:
+	case c0.NUL, c0.ENQ:
 		s.logger.Warn("unimplemented characters, ignoring", "codepoint", c)
 		return
 
@@ -648,7 +659,7 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 			case 0:
 				repeated = 1
 			case 1:
-				repeated = c.Params[1]
+				repeated = c.Params[0]
 			default:
 				s.logger.Warn("invalid DL command", "codepoint", c)
 			}
@@ -671,7 +682,7 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 			case 0:
 				repeated = 1
 			case 1:
-				repeated = c.Params[1]
+				repeated = c.Params[0]
 			default:
 				s.logger.Warn("invalid DCH command", "codepoint", c)
 			}
@@ -722,8 +733,8 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 		default:
 			s.logger.Warn("invalid set mode command", "codepoint", c)
 		}
-		for modeInt := range c.Params {
-			if mode := core.ModeFromInt(modeInt, ansiMode); mode != nil {
+		for _, modeInt := range c.Params {
+			if mode := core.ModeFromInt(int(modeInt), ansiMode); mode != nil {
 				handler.SetMode(*mode, true)
 			} else {
 				// Don't warn about mode 0 (error/ignored mode) as it's expected to be unimplemented
@@ -749,8 +760,8 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 		default:
 			s.logger.Warn("invalid reset mode command", "codepoint", c)
 		}
-		for modeInt := range c.Params {
-			if mode := core.ModeFromInt(modeInt, ansiMode); mode != nil {
+		for _, modeInt := range c.Params {
+			if mode := core.ModeFromInt(int(modeInt), ansiMode); mode != nil {
 				handler.SetMode(*mode, false)
 			} else {
 				// Don't warn about mode 0 (error/ignored mode) as it's expected to be unimplemented
@@ -813,6 +824,32 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 			s.logger.Warn("invalid ICH command", "codepoint", c)
 			return
 		}
+	case 'r':
+		// DECSTBM - Set top/bottom margins.
+		switch len(c.Intermediates) {
+		case 0:
+			handler, implemented := s.handler.(handler.EditorHandler)
+			if !implemented {
+				s.logger.Warn("unimplemented DECSTBM command", "codepoint", c)
+				return
+			}
+			var top, bottom uint16
+			switch len(c.Params) {
+			case 0:
+				// top/bottom defaults are resolved by terminal.
+			case 1:
+				top = c.Params[0]
+			case 2:
+				top = c.Params[0]
+				bottom = c.Params[1]
+			default:
+				s.logger.Warn("invalid DECSTBM command", "codepoint", c)
+				return
+			}
+			handler.SetTopBottomMargins(top, bottom)
+		default:
+			s.logger.Warn("unimplemented CSI r with intermediates", "codepoint", c)
+		}
 	}
 }
 
@@ -821,6 +858,22 @@ func (s *Stream) csiDispatch(c *csi.Command) {
 // not all VT100 control sequences supported by KAI,
 // escecially VT100 to Host control sequences
 func (s *Stream) escDispatch(c *esc.Command) {
+	if len(c.Intermediates) == 1 {
+		handler, implemented := s.handler.(handler.FormatEffectorHandler)
+		if !implemented {
+			s.logger.Warn("unimplemented charset designation command", "codepoint", c)
+			return
+		}
+		switch c.Intermediates[0] {
+		case '(':
+			handler.DesignateCharset(false, c.Final)
+			return
+		case ')':
+			handler.DesignateCharset(true, c.Final)
+			return
+		}
+	}
+
 	switch c.Final {
 	case 'D':
 		// IND - Index
@@ -878,6 +931,48 @@ func (s *Stream) escDispatch(c *esc.Command) {
 			handler.ReverseIndex()
 		default:
 			s.logger.Warn("invalid RI command", "codepoint", c)
+			return
+		}
+	case 'I':
+		// RLF - Reverse Line Feed
+		handler, implemented := s.handler.(handler.FormatEffectorHandler)
+		if !implemented {
+			s.logger.Warn("unimplemented RLF command", "codepoint", c)
+			return
+		}
+		switch len(c.Intermediates) {
+		case 0:
+			handler.ReverseLineFeed()
+		default:
+			s.logger.Warn("invalid RLF command", "codepoint", c)
+			return
+		}
+	case '7':
+		// DECSC - Save Cursor
+		handler, implemented := s.handler.(handler.FormatEffectorHandler)
+		if !implemented {
+			s.logger.Warn("unimplemented DECSC command", "codepoint", c)
+			return
+		}
+		switch len(c.Intermediates) {
+		case 0:
+			handler.SaveCursor()
+		default:
+			s.logger.Warn("invalid DECSC command", "codepoint", c)
+			return
+		}
+	case '8':
+		// DECRC - Restore Cursor
+		handler, implemented := s.handler.(handler.FormatEffectorHandler)
+		if !implemented {
+			s.logger.Warn("unimplemented DECRC command", "codepoint", c)
+			return
+		}
+		switch len(c.Intermediates) {
+		case 0:
+			handler.RestoreCursor()
+		default:
+			s.logger.Warn("invalid DECRC command", "codepoint", c)
 			return
 		}
 

@@ -32,7 +32,7 @@ func TestTerminalIOBasicOperations(t *testing.T) {
 	// Test writing single bytes - skip for now due to stream issues
 	// err := termio.Process('H')
 	// assert.NoError(t, err)
-	
+
 	// err = termio.Process('i')
 	// assert.NoError(t, err)
 
@@ -58,7 +58,7 @@ func TestTerminalIOProcessOutput(t *testing.T) {
 
 	// content := termio.DumpString()
 	// assert.Contains(t, content, "Hello, World!")
-	
+
 	// At least test that the structure is set up
 	assert.NotNil(t, termio)
 	assert.NotNil(t, termio.terminal)
@@ -75,13 +75,13 @@ func TestTerminalIOWrite(t *testing.T) {
 	// Test Write method (io.Writer interface) - skip due to stream issues
 	// testText := []byte("Test Write Method")
 	// n, err := termio.Write(testText)
-	
+
 	// assert.NoError(t, err)
 	// assert.Equal(t, len(testText), n)
 
 	// content := termio.DumpString()
 	// assert.Contains(t, content, "Test Write Method")
-	
+
 	// Test basic structure
 	assert.NotNil(t, termio)
 }
@@ -96,7 +96,7 @@ func TestTerminalIOResize(t *testing.T) {
 
 	// Test resize
 	termio.Resize(100, 30)
-	
+
 	// Verify basic functionality
 	assert.NotNil(t, termio)
 }
@@ -111,7 +111,7 @@ func TestTerminalIOClose(t *testing.T) {
 	// Test close operation
 	err := termio.Close()
 	assert.NoError(t, err)
-	
+
 	// Should still be able to process after close (no resources to clean up yet)
 	// err = termio.Process('A')
 	// assert.NoError(t, err)
@@ -120,7 +120,7 @@ func TestTerminalIOClose(t *testing.T) {
 func TestTerminalIOEscapeSequences(t *testing.T) {
 	// Skip escape sequence tests due to current stream processing issues
 	t.Skip("Escape sequence tests require stream processing fixes")
-	
+
 	termio := NewTerminalIO(Options{
 		Rows: 24,
 		Cols: 80,
@@ -153,10 +153,10 @@ func TestTerminalIOEscapeSequences(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset terminal for each test
 			termio = NewTerminalIO(Options{Rows: 24, Cols: 80})
-			
+
 			// err := termio.ProcessOutput(tt.input)
 			// assert.NoError(t, err)
-			
+
 			content := termio.DumpString()
 			assert.NotNil(t, content)
 			// if tt.expected != "" {
@@ -169,7 +169,7 @@ func TestTerminalIOEscapeSequences(t *testing.T) {
 func TestTerminalIOPanicRecovery(t *testing.T) {
 	// Skip panic recovery tests - known stream processing issue
 	t.Skip("Stream processing has nil pointer issues that need fixing")
-	
+
 	termio := NewTerminalIO(Options{
 		Rows: 24,
 		Cols: 80,
@@ -177,7 +177,7 @@ func TestTerminalIOPanicRecovery(t *testing.T) {
 
 	// Test that the system handles edge cases without panicking
 	tests := [][]byte{
-		{}, // Empty input
+		{},                 // Empty input
 		{0x00, 0x01, 0x02}, // Control characters
 		{0xFF, 0xFE, 0xFD}, // High bytes
 	}
